@@ -1,31 +1,64 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Demon Tracker Global</title>
+    <title>Demon Tracker | Global</title>
     <style>
-        body { background: #0a0a0a; color: white; font-family: sans-serif; text-align: center; }
-        .impossible { color: #ff0000; text-shadow: 0 0 10px #ff0000, 0 0 20px #ff0000; font-weight: bold; }
-        table { margin: 50px auto; width: 80%; background: #111; border: 1px solid #333; }
-        th, td { padding: 15px; border-bottom: 1px solid #222; }
-        th { background: #00ff00; color: black; }
+        :root { --neon: #ff0044; --gd-green: #00ff44; }
+        body { background: #0c0c0c; color: white; font-family: 'Segoe UI', sans-serif; }
+        .container { max-width: 900px; margin: auto; padding: 20px; }
+        
+      
+        .impossible { 
+            color: var(--neon); 
+            text-shadow: 0 0 10px var(--neon), 0 0 20px var(--neon);
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        table { width: 100%; border-collapse: collapse; background: #151515; border-radius: 10px; overflow: hidden; }
+        th { background: var(--gd-green); color: black; padding: 15px; }
+        td { padding: 12px; border-bottom: 1px solid #222; text-align: center; }
+        tr:hover { background: #222; }
+
+        .history-box { margin-bottom: 20px; text-align: left; }
+        select { background: #333; color: white; padding: 8px; border: 1px solid var(--gd-green); }
     </style>
 </head>
 <body>
-    <h1>👹 DEMON TRACKER LEADERBOARD 👹</h1>
-    <table id="list">
-        <tr><th>Rank</th><th>Player</th><th>Skill Points</th></tr>
-    </table>
+    <div class="container">
+        <h1>👹 DEMON TRACKER 👹</h1>
+        
+        <div class="history-box">
+            <label>View History: </label>
+            <select id="dateSelector" onchange="loadSpecificDate()">
+                <option value="latest">Current Live Rankings</option>
+            </select>
+        </div>
+
+        <table id="leaderboard">
+            <thead>
+                <tr><th>Rank</th><th>Player</th><th>Skill Points</th><th>Status</th></tr>
+            </thead>
+            <tbody id="listBody"></tbody>
+        </table>
+    </div>
+
     <script>
-        async function load() {
-            const res = await fetch('/api/data');
+        async function load(date = 'latest') {
+            const res = await fetch(`/api/data?date=${date}`);
             const data = await res.json();
-            const table = document.getElementById('list');
-            data.forEach((p, i) => {
-                const row = table.insertRow();
+            const body = document.getElementById('listBody');
+            body.innerHTML = "";
+            
+            data.players.forEach((p, i) => {
                 const rank = i + 1;
-                // Apply the Neon Red "Impossible" glow to Top 5
-                const style = rank <= 5 ? 'class="impossible"' : '';
-                row.innerHTML = `<td>${rank}</td><td ${style}>${p.username}</td><td>${p.points}</td>`;
+                const isImp = rank <= 5 ? 'class="impossible"' : '';
+                body.innerHTML += `<tr>
+                    <td>${rank}</td>
+                    <td ${isImp}>${p.username}</td>
+                    <td>${p.points}</td>
+                    <td ${isImp}>${rank <= 5 ? 'IMPOSSIBLE' : 'DEMON'}</td>
+                </tr>`;
             });
         }
         load();
