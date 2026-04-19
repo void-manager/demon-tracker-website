@@ -1,30 +1,36 @@
 from flask import Flask, request, jsonify
-from flask_cors import CORS
+import os, redis, datetime
 
 app = Flask(__name__)
-CORS(app) # This allows your mod to talk to the site
-
-# This is where the rankings stay while the server is awake
-leaderboard = []
+kv = redis.from_url(os.environ.get("KV_URL"), decode_responses=True)
 
 @app.route('/api/submit', methods=['POST'])
 def submit():
     data = request.json
-    # data = {"username": "zion", "points": 500}
+    user = data.get('username')
+    pts = data.get('points')
+    date_key = datetime.datetime.now().strftime("%Y-%m-%d")
+
+    # 1. Update Live Rankings
+    kv.zadd("leaderboard:latest", {user: pts})
     
-    # Update existing player or add new one
-    for p in leaderboard:
-        if p['username'] == data['username']:
-            p['points'] = data['points']
-            break
-    else:
-        leaderboard.append(data)
+    # 2. Save Snapshot for Wayback (Snapshot of the day)
+    kv.zadd(f"leaderboard:{date_key}", {user: pts})
     
-    # Sort: Highest points at Rank #1
-    leaderboard.sort(key=lambda x: x['points'], reverse=True)
+    # Keep track of which dates we have data for
+    kv.sadd("leaderboard_dates", date_key)
     
-    return jsonify({"status": "success", "your_rank": leaderboard.index(data) + 1})
+    return jsonify({"status": "success"})
 
 @app.route('/api/data', methods=['GET'])
 def get_data():
-    return jsonify(leaderboard)
+    date = request.args.get('date', 'latest')
+    key = f"leaderboard:{date}"
+    
+    raw = kv.zrevrange(key, 0, 49, withscores=True)
+    players = [{"username": p[0], "points": int(p[1])} for p in raw]
+    
+    # Also return all available dates for the dropdown
+    dates = list(kv.smembers("leaderboard_dates"))
+    
+    return jsonify({"players": players, "available_dates": dates})
